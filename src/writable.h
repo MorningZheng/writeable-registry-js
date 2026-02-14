@@ -10,6 +10,9 @@
 #include <memory>
 #include <iostream>
 #include <cassert>
+#include <vector>
+#include <algorithm>
+#include <unordered_map>
 
 void test(const Napi::CallbackInfo& info);
 

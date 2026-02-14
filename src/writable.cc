@@ -27,24 +27,33 @@ std::unique_ptr<wchar_t[]> utf8ToWideChar(const std::string& utf8) {
   return result;
 }
 
-HKEY GetRootFromName(std::string root_name){
-    HKEY root = nullptr;
-    if (_stricmp(root_name.c_str(), "HKEY_CLASSES_ROOT") == 0 || _stricmp(root_name.c_str(), "HKCR") == 0) root = HKEY_CLASSES_ROOT;
-    else if (_stricmp(root_name.c_str(), "HKEY_CURRENT_USER") == 0 || _stricmp(root_name.c_str(), "HKCU") == 0) root = HKEY_CURRENT_USER;
-    else if (_stricmp(root_name.c_str(), "HKEY_LOCAL_MACHINE") == 0 || _stricmp(root_name.c_str(), "HKLM") == 0) root = HKEY_LOCAL_MACHINE;
-    else if (_stricmp(root_name.c_str(), "HKEY_USERS") == 0 || _stricmp(root_name.c_str(), "HKU") == 0) root = HKEY_USERS;
-    else if (_stricmp(root_name.c_str(), "HKEY_CURRENT_CONFIG") == 0 || _stricmp(root_name.c_str(), "HKCC") == 0) root = HKEY_CURRENT_CONFIG;
-    return root;
-}
+// HKEY GetRootFromName(std::string root_name){
+//     HKEY root = nullptr;
+//     if (_stricmp(root_name.c_str(), "HKEY_CLASSES_ROOT") == 0 || _stricmp(root_name.c_str(), "HKCR") == 0) root = HKEY_CLASSES_ROOT;
+//     else if (_stricmp(root_name.c_str(), "HKEY_CURRENT_USER") == 0 || _stricmp(root_name.c_str(), "HKCU") == 0) root = HKEY_CURRENT_USER;
+//     else if (_stricmp(root_name.c_str(), "HKEY_LOCAL_MACHINE") == 0 || _stricmp(root_name.c_str(), "HKLM") == 0) root = HKEY_LOCAL_MACHINE;
+//     else if (_stricmp(root_name.c_str(), "HKEY_USERS") == 0 || _stricmp(root_name.c_str(), "HKU") == 0) root = HKEY_USERS;
+//     else if (_stricmp(root_name.c_str(), "HKEY_CURRENT_CONFIG") == 0 || _stricmp(root_name.c_str(), "HKCC") == 0) root = HKEY_CURRENT_CONFIG;
+//     return root;
+// }
 
-Napi::Object CreateEntry(const Napi::Env& env, LPWSTR name, const LPWSTR type, DWORD data) {
-    auto obj = Napi::Object::New(env);
-    obj.Set(Napi::String::New(env, "name"), Napi::String::New(env, (char16_t*)name));
-    obj.Set(Napi::String::New(env, "type"), Napi::String::New(env, (char16_t*)type));
-    obj.Set(Napi::String::New(env, "data"), Napi::Number::New(env, static_cast<uint32_t>(data)));
-    return obj;
-}
+HKEY GetRootFromName(std::string name) {
+    // 1. 统一转为大写，这样只需要匹配一次，不需要多次调用 _stricmp
+    std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
+    // 2. 静态映射表：只在第一次调用时初始化，性能极佳
+    static const std::unordered_map<std::string, HKEY> rootMap = {
+        {"HKCR", HKEY_CLASSES_ROOT},   {"HKEY_CLASSES_ROOT", HKEY_CLASSES_ROOT},
+        {"HKCU", HKEY_CURRENT_USER},   {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},
+        {"HKLM", HKEY_LOCAL_MACHINE},  {"HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE},
+        {"HKU",  HKEY_USERS},          {"HKEY_USERS", HKEY_USERS},
+        {"HKCC", HKEY_CURRENT_CONFIG}, {"HKEY_CURRENT_CONFIG", HKEY_CURRENT_CONFIG}
+    };
+
+    // 3. 查表返回
+    auto it = rootMap.find(name);
+    return (it != rootMap.end()) ? it->second : nullptr;
+}
 
 std::pair<std::unique_ptr<char[]>, std::unique_ptr<char[]>> ParseSubkeyAndValue(const std::string& subPath) {
     const auto lastSlash = subPath.rfind('\\');
