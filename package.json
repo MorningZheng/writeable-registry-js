@@ -1,0 +1,23 @@
+{
+  "name": "writeable-registry",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MorningZheng/writeable-registry-js.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/MorningZheng/writeable-registry-js/issues"
+  },
+  "homepage": "https://github.com/MorningZheng/writeable-registry-js#readme",
+  "dependencies": {
+    "registry-js": "^1.16.1"
+  }
+}
