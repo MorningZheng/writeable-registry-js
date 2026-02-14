@@ -113,22 +113,26 @@ Napi::Value ReadFromKey(const Napi::CallbackInfo& info) {
 
     std::string full_path = info[1].As<Napi::String>();
 
-    // 3. 路径合法性初步检查
-    auto [hKeyRes, status] = OpenRegKey(root, full_path);
-    if (status == ERROR_SUCCESS) {
-        THROW_JS_ERROR(env, "The provided path is a subkey, not a value");
+    auto [subKeyPath, valueName] = ParseSubkeyAndValue(full_path);
+    bool parsedValue = subKeyPath && valueName;
+    if (!parsedValue) {
+        auto make_buffer = [](const std::string& s) -> std::unique_ptr<char[]> {
+            auto buf = std::make_unique<char[]>(s.size() + 1);
+            std::memcpy(buf.get(), s.data(), s.size());
+            buf[s.size()] = '\0';
+            return buf;
+        };
+        subKeyPath = make_buffer(full_path);
+        valueName = std::make_unique<char[]>(1);
+        valueName[0] = '\0';
     }
 
-    // 4. 解析子键名与键值名
-    auto [subKeyPath, valueName] = ParseSubkeyAndValue(full_path);
     auto [hKey, openStatus] = OpenRegKey(root, subKeyPath.get());
-
     if (openStatus != ERROR_SUCCESS) {
         std::string err_msg = "Cannot open registry key. Error code: " + std::to_string(openStatus);
         THROW_JS_ERROR(env, err_msg);
     }
 
-    // 5. 准备读取注册表数据
     auto valueNameW = utf8ToWideChar(valueName.get());
     if (!valueNameW) {
         THROW_JS_ERROR(env, "Failed to parse value name to wide string.");
@@ -137,13 +141,21 @@ Napi::Value ReadFromKey(const Napi::CallbackInfo& info) {
     DWORD dataType = 0, dataSize = 0;
     LSTATUS queryStatus = RegQueryValueExW(hKey.get(), valueNameW.get(), nullptr, &dataType, nullptr, &dataSize);
 
+    if (queryStatus == ERROR_FILE_NOT_FOUND && parsedValue) {
+        auto [defaultKey, defaultOpenStatus] = OpenRegKey(root, full_path);
+        if (defaultOpenStatus == ERROR_SUCCESS) {
+            hKey = std::move(defaultKey);
+            valueNameW = utf8ToWideChar("");
+            queryStatus = RegQueryValueExW(hKey.get(), valueNameW.get(), nullptr, &dataType, nullptr, &dataSize);
+        }
+    }
+
     if (queryStatus == ERROR_FILE_NOT_FOUND) {
         THROW_JS_ERROR(env, "The specified registry value does not exist.");
     } else if (queryStatus != ERROR_SUCCESS) {
         THROW_JS_ERROR(env, "RegQueryValueEx failed. Code: " + std::to_string(queryStatus));
     }
 
-    // 6. 分配缓冲区并执行第二次查询
     auto buffer = std::make_unique<BYTE[]>(dataSize > 0 ? dataSize : 1);
     RegQueryValueExW(hKey.get(), valueNameW.get(), nullptr, &dataType, buffer.get(), &dataSize);
 
