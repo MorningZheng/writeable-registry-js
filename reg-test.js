@@ -36,7 +36,12 @@
 //
 // // console.log(readValues(HKEY.HKEY_CLASSES_ROOT, `Word.Application`));
 
-const reg=require('./index');
+// const reg=require('./index');
+//
+// console.log(reg.readFromKey(reg.HKEY.HKEY_CLASSES_ROOT,'Word.Application\\test'));
 
-console.log(reg.readFromKey(reg.HKEY.HKEY_CLASSES_ROOT,'Word.Application\\test'));
+const {HKEY,deleteFromPath,readFromKey}=require('@writeable-registry-js');
 
+const version=`${(/\.(\d+)$/.exec(readFromKey(HKEY.HKEY_CLASSES_ROOT, 'Word.Application\\CurVer').data)??[0, 0])[1]}.0`;
+
+console.log(deleteFromPath(HKEY.HKEY_CURRENT_USER, `Software\\Microsoft\\Office\\${version}\\Word\\Resiliency`));
